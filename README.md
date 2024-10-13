@@ -7,6 +7,6 @@ October 2024.
 ## Index
 
 -   📂 **[Notes](notes/)**
-    -   📝 [Course notes](notes/code-by-chapter.md): My notes on the course.
+    -   📝 [Course notes](notes/notes.md): My notes on the course.
     -   📝 [Code by chapter](notes/code-by-chapter.md): How the code looks like at the end of each chapter.
--   📂 **[playground](playground/)**: Where I've tested the code.
+-   📂 **[Playground](playground/)**: Where I've tested the app.
