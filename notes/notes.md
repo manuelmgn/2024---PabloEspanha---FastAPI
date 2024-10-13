@@ -192,6 +192,7 @@ def get_movie(id: int):
 -   Usado para crear registros.
 -   Podemos usar rutas idénticas definidas con GET, ya que se acceden por un método distinto.
 -   Definimos los parámetros de las películas (en este caso) que vamos a crear y los igualamos a una nueva película que añadiremos a la lista en la función.
+
     ![Docs - Post - Parameters](img/docs-post.png)
 
     ```py
@@ -210,6 +211,7 @@ def get_movie(id: int):
 -   Como vemos en la imagen, la documentación ya detecta que los parámetros son de tipo query.
 -   A pesar de que podría funcionar, no parece que pasar estos datos por URL sea lo más conveniente. Sería mejor enviarlos a través del cuerpo de la petición (**_Request Body_**). Para ello debemos importar la clase `Body`: `from fastapi import Body`. En nuestro caso ya importábamos `FastApi` desde `fastapi`, así que el _import_ completo será `from fastapi import FastAPI, Body`.
 -   Ahora debemos indicar que los parámetros query van a ser recibimos como parte del cuerpo de la petición. Lo hacemos igualando los parámetros de la función a `Body()`.
+
     ![Docs - Post - Body](img/docs-post-body.png)
 
     ```py
