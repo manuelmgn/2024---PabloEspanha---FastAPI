@@ -173,7 +173,7 @@ def get_movie(id: int):
 ![Documentation - Query](img/doc-query.png)
 
 -   Y si queremos añadir un segundo parámetro? Lo hacemos después del anterior, separados por una coma: `def get_movie_by_category(category: str, year: int)`.
--   En la documentación, al probar esta ruta, podremos ver la URL completa: 'http://127.0.0.1:8000/movies/?category=Comedia&year=2001'.
+-   En la documentación, al probar esta ruta, podremos ver la URL completa: `http://127.0.0.1:8000/movies/?category=Comedia&year=2001`.
 -   Podemos actualiza la función:
 
     ```py
@@ -385,25 +385,80 @@ def get_movie(id: int):
 
 ### Validaciones de datos
 
+-   FastAPI, gracias a Pydantic, realiza algunas validaciones por defecto, sin que nosotros tengamos que hacer nada.
+    -   Una de ellas es comprobar que se envían todos los campos necesarios. Hasta ahora, si queríamos crear una nueva película, pero nos faltaba un campo como el título, veíamos un error `Field required`.
+    -   La otra validación que realiza FastAPI es la que viene determinada por los tipos. Si indicamos que algo debe ser un `int`, pero le pasamos como valor una cadena de texto se producirá un error. `Input should be a valid integer...`
+-   Para conocer qué otras validaciones podemos hacer con FastAPI, crearemos un nuevo modelo de datos `MovieCreate` e importaremos la clase `Field` de Pydantic.
+-   Igualamos los campos a Field y, como argumentos de este, podemos pasar algunas validaciones como:
+    -   `min_length` o `max_length`
+    -   `gt` (_greater than_), `ge` (_greater than or equal_), `lt` (_less than_) o `le` (_less than or equal_)
+    -   `default` para valores por defecto.
+-   Podemos decir que un año sea menor o igual que el actual. Para ello importamos `datetime`. En el campo usaremos `Field(le=datetime.date.today().year)`.
+-   En `createmovie()` reemplazamos a `Movie` por el esquema `MovieCreate`. `def create_movie(movie: MovieCreate) -> List[Movie]:`. Probamos en la documentación y todo debería funcionar.
+
+    ```py
+    class MovieCreate(BaseModel):
+        id: int
+        title: str = Field(min_length=5, max_length=30, default="My movie")
+        overview: str = Field(min_length=15, max_length=100, default="Esta película trata...")
+        year: int = Field(le=datetime.date.today().year, gt=1880)
+        rating: float = Field(ge=0, le=10, default=5)
+        category: str = Field(min_length=5, max_length=50)
+    ```
+
+-   Otra forma de dar valores por defecto es **extendiendo la configuración**. Para ello quitamos los introducidos anteriormente. Y escribimos el atributo `model_config` dentro de `MovieCreate`. Este pertenece a `BaseModel`. Dentro de `model_config` creamos una serie de campos y, finalmente, los valores por defecto.
+
+    ```py
+    class MovieCreate(BaseModel):
+    id: int
+    title: str = Field(min_length=5, max_length=30)
+    overview: str = Field(min_length=15, max_length=100)
+    year: int = Field(le=datetime.date.today().year, gt=1880)
+    rating: float = Field(ge=0, le=10)
+    category: str = Field(min_length=5, max_length=50)
+
+    model_config = {
+        'json_schema_extra': {
+            'example': {
+                'id': 1
+                'title': "Título por defecto"
+                'overview': "Overview por defecto"
+                'year': 1900
+                'rating': 5.0
+                'category': "Ninguna"
+            }
+        }
+    }
+    ```
+
+- En la documentación ya podemos ver los valores por defecto. Están desordenados, pero eso no es un problema.
+    ![Docs - Example Movie](img/docs-movie-example.png)
+
+---
+
+Bola extra!
+
+- Vamos a **mejorar la legibilidad de nuestro código** de cara a la documentación. Ahora mismo estamos enviando como respuesta una lista de diccionarios (`movies=[{}, {}]`) y no una lista de objectos película.
+- Para ello, vamos indicar que `movies` es en realidad una lista de tipo `Movie`: `movies: List[Movie] = []`.
+- Cuando creamos una película, ya no la registramos como un diccionario (`movies.append(movie.model_dump())`), sino solamente el objecto (movies.append(movie)).
+- Al devolverla dará un error, ya ahora mismo `movies` devuelve una lista de objetos de tipo `Movie`. Por tanto, al retornar, sí deberíamos convertilas a diccionario. Por cada película, la convertiremos en diccionario. `return [movie.model_dump() for movie in movies]`. Haremos esto en todos los que previamente devolvían varias películas.
+- Donde solamente devolvíamos una película, ahora la convertimos en diccionario. `return movie.model_dump()`
+- IMPORTANTE: Esta es la solución propuesta por Pablo España, pero a mi no me funciona. Este error no tiene que ver con la versión de Pydantic, tal y como él sugiere en un comentario, ya que tengo la última instalada. Me dispongo ahora a adaptar esto a solución dada por ChatGPT.
+  - _El problema con tu código es que `model_dump()` es un método que pertenece a los modelos de Pydantic, pero la variable movies contiene diccionarios simples de Python, no instancias de Pydantic. Para resolverlo con los mínimos cambios posibles, podemos convertir los diccionarios a instancias del modelo Movie antes de llamar a `model_dump()`_
+  - `return [Movie(**movie).model_dump() for movie in movies]`
+  - o `return Movie(**movie).model_dump()`
+  - El código completo se puede ver en [code_by_chapter.md](code-by-chapter.md)
+
+---
+
 ### Validaciones de parámetros
-
-
 
 ## Tipos de respuestas y códigos de estados
 
-
-
 ## Middlewares
-
-
 
 ## Dependencias
 
-
-
 ## Modularización
 
-
-
 ## Manejo de errores
-
