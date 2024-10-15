@@ -170,11 +170,11 @@ def get_movie(id: int):
 
         -   Por que `/movies/`, con la barra final? Porque ya teníamos definida la ruta `/movies` y porque en este caso tendrá algo a continuación de la barra: los parámetros query.
 
-![Documentation - Query](img/doc-query.png)
+    ![Documentation - Query](img/doc-query.png)
 
 -   Y si queremos añadir un segundo parámetro? Lo hacemos después del anterior, separados por una coma: `def get_movie_by_category(category: str, year: int)`.
 -   En la documentación, al probar esta ruta, podremos ver la URL completa: `http://127.0.0.1:8000/movies/?category=Comedia&year=2001`.
--   Podemos actualiza la función:
+-   Podemos actualizar la función:
 
     ```py
     @app.get('/movies/', tags=['Movies'])
@@ -185,7 +185,7 @@ def get_movie(id: int):
         return []
     ```
 
-![Documentation - Query test](img/docs-query-test.png)
+    ![Documentation - Query test](img/docs-query-test.png)
 
 ### POST
 
@@ -257,27 +257,27 @@ def create_movie(
 -   Una vez se encuentre, igualaremos los campos a los introducimos.
 -   Finalmente, devolvemos la lista actualizada.
 
-```py
-@app.put('/movies/{id}', tags=['Movies'])
-def update_movie(
-    id: int
-    title: str = Body(),
-    overview: str = Body(),
-    year: int = Body(),
-    rating: float = Body(),
-    category: str = Body()
-    ):
-    for movie in movies:
-        if movie['id'] == id:
-            movie['title'] = title,
-            movie['overview'] = overview,
-            movie['year'] = year,
-            movie['rating'] = rating,
-            movie['category'] = category
-    return movies
-```
+    ```py
+    @app.put('/movies/{id}', tags=['Movies'])
+    def update_movie(
+        id: int
+        title: str = Body(),
+        overview: str = Body(),
+        year: int = Body(),
+        rating: float = Body(),
+        category: str = Body()
+        ):
+        for movie in movies:
+            if movie['id'] == id:
+                movie['title'] = title,
+                movie['overview'] = overview,
+                movie['year'] = year,
+                movie['rating'] = rating,
+                movie['category'] = category
+        return movies
+    ```
 
-![Docs - PUT](img/docs-put.png)
+    ![Docs - PUT](img/docs-put.png)
 
 ### DELETE
 
@@ -285,16 +285,16 @@ def update_movie(
 -   Aquí no pasaremos valores, sólo eliminaremos la película.
 -   Pasamos el id, recorremos las películas y, cuando encontremos la coincidence, usamos remove() para quitar aquella de la lista.
 
-```py
-@app.delete('/movies/{id}', tags=['Movies'])
-def get_movie(id: int):
-    for movie in movies:
-        if movie['id'] == id:
-            movies.remove(movie)
-    return movies
-```
+    ```py
+    @app.delete('/movies/{id}', tags=['Movies'])
+    def get_movie(id: int):
+        for movie in movies:
+            if movie['id'] == id:
+                movies.remove(movie)
+        return movies
+    ```
 
-![Docs - Delete](img/docs-delete.png)
+    ![Docs - Delete](img/docs-delete.png)
 
 ## Validación de datos
 
