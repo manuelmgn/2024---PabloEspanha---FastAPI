@@ -431,29 +431,107 @@ def get_movie(id: int):
     }
     ```
 
-- En la documentación ya podemos ver los valores por defecto. Están desordenados, pero eso no es un problema.
+-   En la documentación ya podemos ver los valores por defecto. Están desordenados, pero eso no es un problema.
     ![Docs - Example Movie](img/docs-movie-example.png)
 
 ---
 
 Bola extra!
 
-- Vamos a **mejorar la legibilidad de nuestro código** de cara a la documentación. Ahora mismo estamos enviando como respuesta una lista de diccionarios (`movies=[{}, {}]`) y no una lista de objectos película.
-- Para ello, vamos indicar que `movies` es en realidad una lista de tipo `Movie`: `movies: List[Movie] = []`.
-- Cuando creamos una película, ya no la registramos como un diccionario (`movies.append(movie.model_dump())`), sino solamente el objecto (movies.append(movie)).
-- Al devolverla dará un error, ya ahora mismo `movies` devuelve una lista de objetos de tipo `Movie`. Por tanto, al retornar, sí deberíamos convertilas a diccionario. Por cada película, la convertiremos en diccionario. `return [movie.model_dump() for movie in movies]`. Haremos esto en todos los que previamente devolvían varias películas.
-- Donde solamente devolvíamos una película, ahora la convertimos en diccionario. `return movie.model_dump()`
-- IMPORTANTE: Esta es la solución propuesta por Pablo España, pero a mi no me funciona. Este error no tiene que ver con la versión de Pydantic, tal y como él sugiere en un comentario, ya que tengo la última instalada. Me dispongo ahora a adaptar esto a solución dada por ChatGPT.
-  - _El problema con tu código es que `model_dump()` es un método que pertenece a los modelos de Pydantic, pero la variable movies contiene diccionarios simples de Python, no instancias de Pydantic. Para resolverlo con los mínimos cambios posibles, podemos convertir los diccionarios a instancias del modelo Movie antes de llamar a `model_dump()`_
-  - `return [Movie(**movie).model_dump() for movie in movies]`
-  - o `return Movie(**movie).model_dump()`
-  - El código completo se puede ver en [code_by_chapter.md](code-by-chapter.md)
+-   Vamos a **mejorar la legibilidad de nuestro código** de cara a la documentación. Ahora mismo estamos enviando como respuesta una lista de diccionarios (`movies=[{}, {}]`) y no una lista de objectos película.
+-   Para ello, vamos indicar que `movies` es en realidad una lista de tipo `Movie`: `movies: List[Movie] = []`.
+-   Cuando creamos una película, ya no la registramos como un diccionario (`movies.append(movie.model_dump())`), sino solamente el objecto (movies.append(movie)).
+-   Al devolverla dará un error, ya ahora mismo `movies` devuelve una lista de objetos de tipo `Movie`. Por tanto, al retornar, sí deberíamos convertilas a diccionario. Por cada película, la convertiremos en diccionario. `return [movie.model_dump() for movie in movies]`. Haremos esto en todos los que previamente devolvían varias películas.
+-   Donde solamente devolvíamos una película, ahora la convertimos en diccionario. `return movie.model_dump()`
 
 ---
 
 ### Validaciones de parámetros
 
+#### De ruta
+
+-   Comenzamos importando `Path` de `fastapi`.
+-   Nos dirigimos a aquellas rutas donde usemos parámetros de ruta, como en `/movies/{id}`.
+
+    -   En `def get_movie(id: int)` indicamos que ese id debe ser mayor que 0 del siguiente modo `def get_movie(id: int = Path(gt=0))`. De este modo, cuando se ingrese un 0 este será mayor a 0.
+    -   Para mejorar el código en esta función debemos hacer otra serie de cambios:
+
+        -   Si ingresamos 0 como id y no se encuentra una película válida, el código actual devolvería una lista , pero debemos devolver un objeto vacío e indicar ese tipo. De este modo, debemos indicar que devuelva una Movie o un `dict` si no encuentra nada.
+        -   Como ya no trabajamos con diccionarios (sólo lo hacemos para responder los datos), debemos cambiar el modo de comprobar el id, así, en lugar de `if movie['id'] == id` deberemos tener
+
+        ```py
+        @app.get('/movies/{id}', tags=['Movies'])
+        def get_movie(id: int = Path(gt=0)) -> Movie | dict:
+            for movie in movies:
+                if movie.id == id:
+                    return movie.model_dump()
+            return {}
+        ```
+
+#### Query
+
+-   Importamos `Query` de `fastapi`
+-   Vamos a una ruta que use parámetros query, como la correspondiente a la función `get_movie_by_category`.
+-   Para este caso vamos a obviar el año y quedarnos sólo con la categoría. Diremos que es igual a Query, y que tendrá entre 5 y 20 caracteres.
+-   Como antes, indicaremos que puede devolver también un diccionario, en caso de que la búsqueda no encuentre resultados.
+
+    ```py
+    @app.get('/movies/', tags=['Movies'])
+    def get_movie_by_category(category: str = Query(min_length=5, max_length=20)) -> Movie | dict:
+        for movie in movies:
+            if movie.category == category:
+                return movie.model_dump()
+        return {}
+    ```
+
 ## Tipos de respuestas y códigos de estados
+
+-   Cuando enviamos una petición podemos obtener distintos tipos de respuestas. Ahora mismo, cuando hacemos `get_movies` se nos devuelve un **JSON**, sin embargo, podemos usar una clase llamada `JSONResponse`. La usemos o no, en nuestro caso la respuesta será igualmente un JSON. No obstante, esto puede ayudarnso a mejorar la documentación del código. La uresamos en varias rutas.
+
+    ```py
+    def get_movies() -> List[Movie]:
+        content = [movie.model_dump() for movie in movies]
+        return JSONResponse(content=content)
+    ```
+
+    ```py
+        def get_movie_by_category(category: str = Query(min_length=5, max_length=20)) -> Movie | dict:
+        for movie in movies:
+            if movie.category == category:
+                return JSONResponse(content = movie.model_dump())
+        return JSONResponse(content ={})
+    ```
+
+-   Otro tipo de respuesta es a través de **texto plano**. Para ello importamos `PlainTextResponse`. Esto nos devolverá un texto plano sin formato.
+-   Podemos probarlo así:
+
+    ```py
+    @app.get('/', tags=['Home'])
+    def home():
+        return PlainTextResponse(content='Home')
+    ```
+
+-   Otro tipo de respuesta es el de **redirección**, importando `RedirectResponse`. La probaremos al crear películas, redirigiendo al inicio. Debemos indicar un código de estado, para que se entienda que se trata de una redirección en la misma aplicación.
+
+    ```py
+    @app.post('/movies', tags=['Movies'])
+    def create_movie(movie: MovieCreate) -> List[Movie]:
+        movies.append(movie)
+        content = [movie.model_dump() for movie in movies]
+        # return JSONResponse(content=content)
+        return RedirectResponse('/movies', status_code=303)
+    ```
+
+    ![Docs - Redirección](img/docs-redirection.png)
+
+- Finalmente, otro tipo de respuesta es como **archivo**, para ello importaremos la clase `FileResponse`. Ahora creamos una ruta específica en la que indicaremos donde se encuentra algún archivo que tengamos en nuestro programa. Lo probaremos dirigiéndonos a la ruta correspondiente.
+
+    ```py
+    @app.get('/get_file')
+    def get_file():
+        return FileResponse('archivo_prueba.txt')
+    ```
+
 
 ## Middlewares
 

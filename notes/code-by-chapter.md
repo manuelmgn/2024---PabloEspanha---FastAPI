@@ -2,7 +2,8 @@
 
 - [CRUD y Path Operations](#crud-y-path-operations)
 - [Validación de datos](#validación-de-datos)
-  - [Validaciones de datos](#validaciones-de-datos)
+- [Tipos de respuestas y códigos de estados](#tipos-de-respuestas-y-códigos-de-estados)
+  - [Respuesta JSONResponse](#respuesta-jsonresponse)
 
 ## CRUD y Path Operations
 
@@ -114,12 +115,8 @@ def get_movie(id: int):
 
 ## Validación de datos
 
-### Validaciones de datos
-
-Solución Pablo España:
-
 ```py
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Path, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -165,33 +162,7 @@ class MovieUpdate(BaseModel):
     category: str
 
 
-movies = [
-    {
-        "id": 1,
-        "title": "The Substance",
-        "overview": "'Tú, pero mejor en todos los sentidos'",
-        "year": "2024",
-        "rating": 7.2,
-        "category": "Ciencia Ficción"
-    },
-    {
-        "id": 2,
-        "title": "The Fall: El sueño de Alexandria",
-        "overview": "Hollywood, años veinte. Tras una desafortunada caída, un especialista en secuencias de acción es ingresado en un hospital",
-        "year": "2006",
-        "rating": 7.0,
-        "category": "Fantástico"
-    },
-    {
-        "id": 3,
-        "title": "Aftersun",
-        "overview": "Sophie reflexiona sobre la alegría compartida y la melancolía privada de unas vacaciones que hizo con su padre 20 años atrás",
-        "year": "2022",
-        "rating": 7.2,
-        "category": "Drama"
-    }
-]
-
+movies: List[Movie] = []
 
 @app.get('/', tags=['Home'])
 def home():
@@ -204,19 +175,19 @@ def get_movies() -> List[Movie]:
 
 
 @app.get('/movies/{id}', tags=['Movies'])
-def get_movie(id: int) -> Movie:
+def get_movie(id: int = Path(gt=0)) -> Movie | dict:
     for movie in movies:
-        if movie['id'] == id:
+        if movie.id == id:
             return movie.model_dump()
-    return []
+    return {}
 
 
 @app.get('/movies/', tags=['Movies'])
-def get_movie_by_category(category: str, year: int) -> Movie:
+def get_movie_by_category(category: str = Query(min_length=5, max_length=20)) -> Movie | dict:
     for movie in movies:
-        if movie['category'] == category:
+        if movie.category == category:
             return movie.model_dump()
-    return []
+    return {}
 
 
 @app.post('/movies', tags=['Movies'])
@@ -224,30 +195,34 @@ def create_movie(movie: MovieCreate) -> List[Movie]:
     movies.append(movie)
     return [movie.model_dump() for movie in movies]
 
+
 @app.put('/movies/{id}', tags=['Movies'])
 def update_movie(id: int, movie: MovieUpdate) -> List[Movie]:
     for item in movies:
-        if item['id'] == id:
-            item['title'] = movie.title,
-            item['overview'] = movie.overview,
-            item['year'] = movie.year,
-            item['rating'] = movie.rating,
-            item['category'] = movie.category
+        if item.id == id:
+            item.title = movie.title
+            item.overview = movie.overview
+            item.year = movie.year
+            item.rating = movie.rating
+            item.category = movie.category
     return [movie.model_dump() for movie in movies]
 
+
 @app.delete('/movies/{id}', tags=['Movies'])
-def get_movie(id: int) -> List[Movie]:
+def delete_movie(id: int) -> List[Movie]:
     for movie in movies:
-        if movie['id'] == id:
+        if movie.id == id:
             movies.remove(movie)
     return [movie.model_dump() for movie in movies]
 ```
 
-Solución ChatGPT:
+## Tipos de respuestas y códigos de estados
+
+### Respuesta JSONResponse
 
 ```py
-from fastapi import FastAPI, Body
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Body, Path, Query
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
@@ -292,33 +267,7 @@ class MovieUpdate(BaseModel):
     category: str
 
 
-movies = [
-    {
-        "id": 1,
-        "title": "The Substance",
-        "overview": "'Tú, pero mejor en todos los sentidos'",
-        "year": "2024",
-        "rating": 7.2,
-        "category": "Ciencia Ficción"
-    },
-    {
-        "id": 2,
-        "title": "The Fall: El sueño de Alexandria",
-        "overview": "Hollywood, años veinte. Tras una desafortunada caída, un especialista en secuencias de acción es ingresado en un hospital",
-        "year": "2006",
-        "rating": 7.0,
-        "category": "Fantástico"
-    },
-    {
-        "id": 3,
-        "title": "Aftersun",
-        "overview": "Sophie reflexiona sobre la alegría compartida y la melancolía privada de unas vacaciones que hizo con su padre 20 años atrás",
-        "year": "2022",
-        "rating": 7.2,
-        "category": "Drama"
-    }
-]
-
+movies: List[Movie] = []
 
 @app.get('/', tags=['Home'])
 def home():
@@ -327,47 +276,51 @@ def home():
 
 @app.get('/movies', tags=['Movies'])
 def get_movies() -> List[Movie]:
-    return [Movie(**movie).model_dump() for movie in movies]  # Convertimos los diccionarios a instancias de Movie
+    content = [movie.model_dump() for movie in movies]
+    return JSONResponse(content=content)
 
 
 @app.get('/movies/{id}', tags=['Movies'])
-def get_movie(id: int) -> Movie:
+def get_movie(id: int = Path(gt=0)) -> Movie | dict:
     for movie in movies:
-        if movie['id'] == id:
-            return Movie(**movie).model_dump()  # Convertimos a instancia de Movie antes de llamar a model_dump()
-    return []
+        if movie.id == id:
+            return JSONResponse(content = movie.model_dump())
+    return JSONResponse(content ={})
 
 
 @app.get('/movies/', tags=['Movies'])
-def get_movie_by_category(category: str, year: int) -> Movie:
+def get_movie_by_category(category: str = Query(min_length=5, max_length=20)) -> Movie | dict:
     for movie in movies:
-        if movie['category'] == category:
-            return Movie(**movie).model_dump()
-    return []
+        if movie.category == category:
+            return JSONResponse(content = movie.model_dump())
+    return JSONResponse(content ={})
 
 
 @app.post('/movies', tags=['Movies'])
 def create_movie(movie: MovieCreate) -> List[Movie]:
-    movies.append(movie.dict())  # Agregamos el nuevo objeto como un diccionario
-    return [Movie(**movie).model_dump() for movie in movies]
+    movies.append(movie)
+    content = [movie.model_dump() for movie in movies]
+    return JSONResponse(content=content)
 
 
 @app.put('/movies/{id}', tags=['Movies'])
 def update_movie(id: int, movie: MovieUpdate) -> List[Movie]:
     for item in movies:
-        if item['id'] == id:
-            item['title'] = movie.title
-            item['overview'] = movie.overview
-            item['year'] = movie.year
-            item['rating'] = movie.rating
-            item['category'] = movie.category
-    return [Movie(**movie).model_dump() for movie in movies]
+        if item.id == id:
+            item.title = movie.title
+            item.overview = movie.overview
+            item.year = movie.year
+            item.rating = movie.rating
+            item.category = movie.category
+    content = [movie.model_dump() for movie in movies]
+    return JSONResponse(content=content)
 
 
 @app.delete('/movies/{id}', tags=['Movies'])
-def get_movie(id: int) -> List[Movie]:
+def delete_movie(id: int) -> List[Movie]:
     for movie in movies:
-        if movie['id'] == id:
+        if movie.id == id:
             movies.remove(movie)
-    return [Movie(**movie).model_dump() for movie in movies]
+    content = [movie.model_dump() for movie in movies]
+    return JSONResponse(content=content)
 ```
