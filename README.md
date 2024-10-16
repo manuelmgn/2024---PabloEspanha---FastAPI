@@ -9,4 +9,4 @@ Course taken: October 2024.
 -   📂 **[Notes](notes/)**: This is a main folder that contains all my notes.
     -   📝 [Course notes](notes/notes.md): My notes on the course.
     -   📝 [Code by chapter](notes/code-by-chapter.md): What the code looks like at the end of each chapter.
--   📂 **[Playground](playground/)**: Where I've tested the app.
+-   📂 **[Playground](code)**: Where I've tested the app.
