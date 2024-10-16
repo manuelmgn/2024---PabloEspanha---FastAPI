@@ -14,9 +14,11 @@
   - [Validaciones de datos](#validaciones-de-datos)
   - [Validaciones de parámetros](#validaciones-de-parámetros)
 - [Tipos de respuestas y códigos de estados](#tipos-de-respuestas-y-códigos-de-estados)
+  - [Tipos de respuestas](#tipos-de-respuestas)
+  - [Códigos de estado](#códigos-de-estado)
+- [Modularización](#modularización)
 - [Middlewares](#middlewares)
 - [Dependencias](#dependencias)
-- [Modularización](#modularización)
 - [Manejo de errores](#manejo-de-errores)
 
 ## Intro
@@ -486,6 +488,8 @@ Bola extra!
 
 ## Tipos de respuestas y códigos de estados
 
+### Tipos de respuestas
+
 -   Cuando enviamos una petición podemos obtener distintos tipos de respuestas. Ahora mismo, cuando hacemos `get_movies` se nos devuelve un **JSON**, sin embargo, podemos usar una clase llamada `JSONResponse`. La usemos o no, en nuestro caso la respuesta será igualmente un JSON. No obstante, esto puede ayudarnso a mejorar la documentación del código. La uresamos en varias rutas.
 
     ```py
@@ -524,7 +528,7 @@ Bola extra!
 
     ![Docs - Redirección](img/docs-redirection.png)
 
-- Finalmente, otro tipo de respuesta es como **archivo**, para ello importaremos la clase `FileResponse`. Ahora creamos una ruta específica en la que indicaremos donde se encuentra algún archivo que tengamos en nuestro programa. Lo probaremos dirigiéndonos a la ruta correspondiente.
+-   Finalmente, otro tipo de respuesta es como **archivo**, para ello importaremos la clase `FileResponse`. Ahora creamos una ruta específica en la que indicaremos donde se encuentra algún archivo que tengamos en nuestro programa. Lo probaremos dirigiéndonos a la ruta correspondiente.
 
     ```py
     @app.get('/get_file')
@@ -532,11 +536,106 @@ Bola extra!
         return FileResponse('archivo_prueba.txt')
     ```
 
+### Códigos de estado
+
+-   Son aquellos códigos que aparecen cuando recibimos una respuesta, como por ejemplo `200` cuando ésta es positiva.
+-   Los modificamos en la respuesta que devuelve cada función, con `status_code=` y el número que deseamos mostrar cuando los datos se devuelvan correctamente. Por ejemplo:
+
+    ```py
+    @app.get('/movies', tags=['Movies'])
+    def get_movies() -> List[Movie]:
+        content = [movie.model_dump() for movie in movies]
+        return JSONResponse(content=content, status_code=200)
+    ```
+
+-   Podemos añadir el código `404` para quando no se encuentre lo que se busca, `201` para las creaciones de películas o `303` para redirección.
+-   Para efectos de documentación, el otro lugar donde podemos definir este código es entre los argumentos de la definición. En este ejemplo, por defecto se esperaría obtener el código 500.
+
+    ```py
+    @app.get('/movies', tags=['Movies'], status_code=500)
+    ```
+
+-   La descripción de la respuesta también se puede cambiar en el mismo lugar.
+
+    ```py
+    @app.get('/movies', tags=['Movies'], status_code=500, response_description="Nos debe devolver una respuesta exitosa")
+    ```
+
+#### Errores personalizados
+
+-   Ahora veremos como personalizar los mensajes de error que se generan de forma automática. Lo haremos extendiendo las validaciones de `pydantic` vistas anteriormente.
+-   Comenzamos importando la clase `validator` de Pydantic.
+-   Nos dirigimos a la clase `MovieCreate()`, después de `model_config` y escribimos `@validator()`, que recibirá como argumento aquello que queramos validar, en nuestro ejemplo `title`.
+-   A continuación creamos una función, que recibirá como primer parámetro la clase a la que pertenece el método, y como segundo el valor que queremos validar. Como cuerpo de la función, irán las validaciones.
+-   Dentro del cuerpo podemos lanzar excepciones con `ValueError` y un mensaje personalizado.
+-   Ahora se pueden quitar las validaciones introducidas previamente.
+
+    ```py
+    class MovieCreate(BaseModel):
+        id: int
+        title: str
+        overview: str = Field(min_length=15, max_length=100)
+        year: int = Field(le=datetime.date.today().year, gt=1880)
+        rating: float = Field(ge=0, le=10)
+        category: str = Field(min_length=5, max_length=50)
+
+        model_config = {
+            'json_schema_extra': {
+                'example': {
+                    'id': 1,
+                    'title': "Título por defecto",
+                    'overview': "Overview por defecto",
+                    'year': 1900,
+                    'rating': 5.0,
+                    'category': "Ninguna"
+                }
+            }
+        }
+
+        @validator('title')
+        def validate_title(cls, value):
+            if len(value) < 5:
+                raise ValueError('El título debe tener como mínimo 5 caracteres')
+            if len(value) > 30:
+                raise ValueError('El título debe tener como máximo 30 caracteres')
+    ```
+
+## Modularización
+
+- Si seguimos añadiendo más **rutas**, observaremos que nuestro archivo `main` se queda demasiado grande. Es bueno tener el organizado bien organizado para facilitar su legibilidad. Aquí es donde entran los **`router`**. 
+  - Antes de pasar a los `router` vamos a organizar un poco el código:
+    - Creamos la carpeta `src` y movemos allí nuestro archivo `main`.
+    - Esto implica que cuando ejecutemos `uvicorn` tengamos que llamarlo `src.main:app`
+    - Creamos la carpeta `routers` con un archivo `__init__.py` en su interior, para que sepa que esta carpeta es un módulo y que se pueda acceder facilmente a los archivos de la carpeta.
+    - Creamos también `movie_router.py` dentro de `routers`.
+  - Ahora quitamos de `main` todas las rutas que tengan que ver con películas (todas) y las pasamos a `movie_routers.py`.
+    - Esto generará que aparezcan muchos errores. VSC nos va a permitir solucionar la mayoría fácilmente.
+  - Copiamos también la lista de películas.
+- También será conveniente moder los **modelos**. 
+  - Creamos una nueva carpeta en `src`, llamada `models`.
+  - Agregamos `__init__.py` y `movie_model.py`.
+  - En `movie_model.py` ponemos las clases que teníamos e importamos las librerías necesarias.
+  - Hecho esto, deberemos llamar los modelos desde `movie_router.py`. Lo haremos con `from src.models.movie_model import *`
+- Antes de pasar al `main` debimos seguir trabajando con los *routers*.
+  - Primero importamos `APIRouter` desde `fastapi` **en `movie_router.py`** y definimos `movie_router=APIRouter()`. Este router solo va a contener las rutas de las películas.
+  - En `movie_router` cambiamos `@app` por `@movie_router`
+- Pasamos a `main`:
+  - Importamos los routers: `from src.routers.movie_router import movie_router`
+  - Para añadir las rutas indicamos que `app.include_router(router=movie_router)`
+  - En la documentación se respetará el orden en que definimos las rutas. Por lo que si ejecutamos `app.include_router()` antes que la ruta de Home, Home aparecerá al final.
+- Si accedemos a nuestra documentación, todo debería estar como antes. En cambio, ahora podemos realizar una pequeña mejora:
+  - Todas las rutas de Movies empiezan por `/movies`. Podemos evitar esta redundancia añadiendo un prefijo:
+
+    ```py
+    app.include_router(prefix='/movies', router=movie_router)
+    ```
+
+    - En las rutas substituímos `/movies` por `/`
+    - Esto ahora hace que algunas rutas sean idénticas a otras, como la de obtener las películas filtradas por categoría. Para solucionar esto, cambiamos la ruta a `/by_category`.
 
 ## Middlewares
 
 ## Dependencias
 
-## Modularización
 
 ## Manejo de errores
