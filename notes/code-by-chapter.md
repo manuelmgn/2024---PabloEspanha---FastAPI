@@ -1,12 +1,13 @@
 # Code by chapter
 
-- [CRUD y Path Operations](#crud-y-path-operations)
-- [Validación de datos](#validación-de-datos)
-- [Tipos de respuestas y códigos de estados](#tipos-de-respuestas-y-códigos-de-estados)
-  - [Respuesta JSONResponse](#respuesta-jsonresponse)
-  - [Resto de tipos de respuesta](#resto-de-tipos-de-respuesta)
-  - [Códigos de estado](#códigos-de-estado)
-- [Modularización](#modularización)
+-   [CRUD y Path Operations](#crud-y-path-operations)
+-   [Validación de datos](#validación-de-datos)
+-   [Tipos de respuestas y códigos de estados](#tipos-de-respuestas-y-códigos-de-estados)
+    -   [Respuesta JSONResponse](#respuesta-jsonresponse)
+    -   [Resto de tipos de respuesta](#resto-de-tipos-de-respuesta)
+    -   [Códigos de estado](#códigos-de-estado)
+-   [Modularización](#modularización)
+-   [Middlewares](#middlewares)
 
 ## CRUD y Path Operations
 
@@ -477,7 +478,7 @@ class MovieCreate(BaseModel):
                 'year': 1900,
                 'rating': 5.0,
                 'category': "Ninguna"
-            } 
+            }
         }
     }
 
@@ -697,5 +698,67 @@ def delete_movie(id: int) -> List[Movie]:
             movies.remove(movie)
     content = [movie.model_dump() for movie in movies]
     return JSONResponse(content=content, status_code=200)
+
+```
+
+## Middlewares
+
+main.py
+
+```py
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import JSONResponse, PlainTextResponse
+
+from routers.movie_router import movie_router
+# from utils.http_error_handler import HTTPErrorHandler
+
+app = FastAPI()
+
+
+# app.add_middleware(HTTPErrorHandler)
+@app.middleware("http")
+async def http_error_handler(
+    request: Request, call_next
+) -> Response | JSONResponse:
+    try:
+        print("El middleware funciona!!")
+        return await call_next(request)
+    except Exception as e:
+        content = f"exc: {str(e)}"
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return JSONResponse(content=content, status_code=status_code)
+
+
+@app.get("/", tags=["Home"])
+def home():
+    return PlainTextResponse(content="Home", status_code=200)
+
+
+app.include_router(prefix="/movies", router=movie_router)
+
+```
+
+utils/http_error_handler.py
+
+```py
+from fastapi import FastAPI, status
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.requests import Request
+from fastapi.responses import Response, JSONResponse
+
+
+class HTTPErrorHandler(BaseHTTPMiddleware):
+    def __init__(self, app: FastAPI) -> None:
+        super().__init__(app)
+
+    async def dispatch(
+        self, request: Request, call_next
+    ) -> Response | JSONResponse:
+        try:
+            return await call_next(request)
+        except Exception as e:
+            content = f"exc: {str(e)}"
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return JSONResponse(content=content, status_code=status_code)
 
 ```

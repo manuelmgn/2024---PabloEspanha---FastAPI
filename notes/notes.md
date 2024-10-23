@@ -635,6 +635,67 @@ Bola extra!
 
 ## Middlewares
 
+Un "middleware" también conocido como lógica de intercambio de información entre aplicaciones (interlogical) o agente intermedio; es una función que funciona con cada solicitud antes de que sea procesada por cualquier operación de ruta específica. Y también con cada respuesta antes de devolverlo.
+
+- Toma cada solicitud que llega a su aplicación.
+- Luego puede hacer algo con esa solicitud o ejecutar cualquier código necesario.
+- Luego pasa la solicitud para que sea procesada por el resto de la aplicación (mediante alguna operación de ruta).
+- Luego toma la respuesta generada por la aplicación (mediante alguna operación de ruta).
+- Puede hacer algo con esa respuesta o ejecutar cualquier código necesario.
+- Luego devuelve la respuesta.
+
+---
+
+- Creamos Middleware usando Starlette.
+- Creamos la carpeta `utils` con `__init__.py`
+- Vamos a crear un middleware para gestionar los errores de la aplicación. Se va a ejectuar después de que la aplicación detecte una petición y antes de emitir una respuesta. Se llamará `http_error_handler.py`
+- Creamos un método de inicio (init) y otro dispatch (asíncrono).
+
+    ```py
+    async def dispatch(        self, request: Request, call_next) -> Response:
+            return await call_next(request)
+    ```
+
+- De momento, `dispatch` lo que hace es continuar con la ejecución de la siguiente función. Todavía no controla nada. Para ello añadimos un bloque `try-except`. Así, si hay un error, se devuelve una respuesta con JSONResponse. Por tanto, en la cabecera de la función ahora debemos decir que puede devolver uno de estos tipos de respuesta.
+- La respuesta JSON devolverá el contenido de la extensión (en un `string` con formato) y el código de estado.
+
+    ```py
+    class HTTPErrorHandler(BaseHTTPMiddleware):
+        def __init__(self, app: FastAPI) -> None:
+            super().__init__(app)
+
+        async def dispatch(
+            self, request: Request, call_next
+        ) -> Response | JSONResponse:
+            try:
+                return await call_next(request)
+            except Exception as e:
+                content = f"exc: {str(e)}"
+                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+                return JSONResponse(content=content, status_code=status_code)
+    ```
+
+- Importamos el middleware en el main, `app.add_middleware(HTTPErrorHandler)`
+- Si borramos por ejemplo la línea `content` de `get_movies()` y probamos este endpoint (con películas) veremos el error.
+
+- De todos modos este no es un middleware 100% fastapi. Vamos a hacer uno. Comenzamos comentando `app.add_middleware(HTTPErrorHandler)` en `main.py`
+- Definimos un middleware semejante al existente. En este caso le metemos un print para comprobar que funciona
+
+    ```py
+    # app.add_middleware(HTTPErrorHandler)
+    @app.middleware("http")
+    async def http_error_handler(
+        request: Request, call_next
+    ) -> Response | JSONResponse:
+        try:
+            print("El middleware funciona!!")
+            return await call_next(request)
+        except Exception as e:
+            content = f"exc: {str(e)}"
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return JSONResponse(content=content, status_code=status_code)
+    ```
+
 ## Dependencias
 
 
